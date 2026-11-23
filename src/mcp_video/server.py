@@ -6,6 +6,7 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent, TextContent
 
+from mcp_video.meta import analyze_frames_with_meta, meta_config
 from mcp_video.video import (
     download_video,
     extract_frame_at_timestamp,
@@ -70,6 +71,45 @@ def analyze_video(
                 ))
 
     return result
+
+
+
+@mcp.tool()
+def analyze_video_with_meta(
+    url: str,
+    prompt: str = "Describe what happens in this video, in detail, with timestamps.",
+    max_frames: int = 8,
+) -> str:
+    """Analyze a video directly with the Meta Model API (Muse Spark).
+
+    Optional alternative to analyze_video: instead of returning frames to
+    the host model, this sends the extracted keyframes + transcript to
+    Muse Spark (muse-spark-1.3) and returns its text analysis.
+    Requires MODEL_API_KEY in the environment (see
+    https://dev.meta.ai/). Returns an explanatory error string if the
+    key is not set.
+    """
+    if not meta_config()["api_key"]:
+        return (
+            "MODEL_API_KEY is not set, so the Meta backend is unavailable. "
+            "Create a key at https://dev.meta.ai/ and export MODEL_API_KEY, "
+            "or use analyze_video (host-model vision) instead."
+        )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        info = download_video(url, Path(tmpdir))
+        frames = extract_keyframes(info["path"], max_frames=max_frames)
+        transcript = get_transcript(url)
+        try:
+            analysis = analyze_frames_with_meta(
+                frames, prompt, transcript.get("full_text", "")
+            )
+        except Exception as e:  # noqa: BLE001 - report as tool text
+            return f"Meta Model API analysis failed: {e}"
+        return (
+            f"**Video:** {info['title']}\n"
+            f"**Model:** {meta_config()['model']} (Meta Model API)\n\n"
+            f"{analysis}"
+        )
 
 
 @mcp.tool()
