@@ -160,3 +160,19 @@ ruff check src/
 ## License
 
 MIT
+
+## Optional: direct analysis with the Meta Model API
+
+The tools above return frames to your host model. If your host has no
+vision, `analyze_video_with_meta` sends the keyframes + transcript
+directly to Meta's Muse Spark instead:
+
+```bash
+export MODEL_API_KEY=<your key from https://dev.meta.ai/>
+# optional overrides:
+# export META_MODEL=muse-spark-1.3
+# export META_BASE_URL=https://api.meta.ai/v1
+```
+
+No extra Python dependency is added (the call uses the standard library),
+and nothing changes when `MODEL_API_KEY` is not set.
